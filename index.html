@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Survey Hub</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Poppins Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-5xl font-extrabold text-center text-gray-900 mb-10">
+            <i class="fas fa-poll text-blue-600 mr-4"></i>Survey Hub
+        </h1>
+
+        <!-- User ID Display -->
+        <div class="text-center text-gray-600 text-base mb-6">
+            Your User ID: <span id="userIdDisplay" class="font-mono text-gray-800 bg-blue-50 px-4 py-2 rounded-lg text-sm select-all shadow-inner">Loading...</span>
+        </div>
+
+        <!-- Add Survey Section (Initially hidden) -->
+        <section id="addSurveySection" class="bg-white rounded-xl shadow-lg">
+            <h2 class="section-title">Share a New Survey</h2>
+            <form id="addSurveyForm" class="flex flex-col gap-6">
+                <div>
+                    <label for="surveyUrl" class="block text-gray-700 text-base font-semibold mb-2">Survey URL:</label>
+                    <input type="url" id="surveyUrl" name="surveyUrl" placeholder="e.g., https://cars.qualtrics.com/jfe/form/SV_..." class="w-full" required>
+                </div>
+                <div>
+                    <label for="targetGroup" class="block text-gray-700 text-base font-semibold mb-2">Survey Target Group:</label>
+                    <input type="text" id="targetGroup" name="targetGroup" placeholder="e.g., Toyota car brand owners, main focus on recent buyers" class="w-full" required>
+                </div>
+                <div>
+                    <label for="qualificationTips" class="block text-gray-700 text-base font-semibold mb-2">Qualification Tips:</label>
+                    <textarea id="qualificationTips" name="qualificationTips" rows="5" placeholder="e.g., Answer yes to 'Do you own a Toyota?'" class="w-full" required></textarea>
+                </div>
+                <div>
+                    <label for="credit" class="block text-gray-700 text-base font-semibold mb-2">Credit (Optional):</label>
+                    <input type="text" id="credit" name="credit" placeholder="e.g., @JohnDoe2025" class="w-full">
+                </div>
+                <button type="submit" class="w-full">
+                    <i class="fas fa-paper-plane mr-2"></i>Submit Survey
+                </button>
+            </form>
+        </section>
+
+        <!-- Search Surveys Section -->
+        <section class="p-8 bg-white rounded-xl shadow-lg">
+            <h2 class="section-title">Find Surveys</h2>
+            <div class="mb-8 search-input-wrapper">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" id="searchQuery" placeholder="Search by keyword, link, or target group..." class="w-full">
+            </div>
+            <div id="searchResults" class="flex flex-col gap-5">
+                <!-- Search results will be displayed here -->
+                <p class="no-results">
+                    <i class="fas fa-hand-point-up"></i>
+                    <span>Start typing to find surveys, or click the <span class="font-bold text-green-600">+ button</span> to share a new one!</span>
+                </p>
+            </div>
+        </section>
+    </div>
+
+    <!-- Floating Action Button for Add Survey -->
+    <div id="addSurveyToggleButton" class="add-survey-toggle-button">
+        <i class="fas fa-plus"></i>
+    </div>
+
+    <!-- Custom Message Modal -->
+    <div id="messageModal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 id="modalTitle" class="modal-title"></h3>
+            <p id="modalMessage" class="modal-message"></p>
+            <button id="modalCloseButton" class="modal-button">Close</button>
+        </div>
+    </div>
+
+    <!-- Developed by Footer -->
+    <footer class="developer-credit">
+        Developed by <a href="https://t.me/joegoldberg2025" target="_blank" rel="noopener noreferrer">Joe Goldberg <i class="fab fa-telegram-plane ml-1"></i></a>
+    </footer>
+
+    <!-- Firebase SDKs and Custom JS -->
+    <script type="module" src="script.js"></script>
+</body>
+</html>
