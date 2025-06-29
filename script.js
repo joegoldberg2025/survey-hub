@@ -1,259 +1,231 @@
+// Import Firebase modules
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, collection, addDoc, onSnapshot, query, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getFirestore, collection, addDoc, onSnapshot, query, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+// --- CONFIGURATION ---
 const firebaseConfig = {
     apiKey: "AIzaSyCwkfxyOeOFqlyrgFQKb-lNYUxk0N6KCTI",
     authDomain: "survey-hub-5abc9.firebaseapp.com",
     projectId: "survey-hub-5abc9",
-    storageBucket: "survey-hub-5abc9.firebasestorage.app",
+    storageBucket: "survey-hub-5abc9.appspot.com",
     messagingSenderId: "11098088256",
     appId: "1:11098088256:web:619d8924076c3ba3d190a5",
     measurementId: "G-1VKVMXRYJD"
 };
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'survey-hub-5abc9';
 
-// Define appId using the projectId from your config for consistency with collection paths
-// This ensures that the Firestore path uses your Firebase project ID.
-const appId = firebaseConfig.projectId;
+let db, auth;
+let surveysCache = []; // Local cache for searching/filtering
+let currentUserId = null;
 
-let app;
-let db;
-let auth;
-let userId = 'Loading...'; // Default until authenticated
+// --- DOM ELEMENT REFERENCES ---
+const showFindBtn = document.getElementById('show-find-btn');
+const showAddBtn = document.getElementById('show-add-btn');
+const findSection = document.getElementById('find-survey-section');
+const addSection = document.getElementById('add-survey-section');
+const addSurveyForm = document.getElementById('add-survey-form');
+const surveyList = document.getElementById('survey-list');
+const searchInput = document.getElementById('search-input');
+const cardTemplate = document.getElementById('survey-card-template');
+const loadingState = document.getElementById('loading-state');
+const emptyState = document.getElementById('empty-state');
+const toast = document.getElementById('toast');
+const toastMessage = document.getElementById('toast-message');
+const userIdDisplay = document.getElementById('user-id-display');
 
-// Get references to DOM elements
-const userIdDisplay = document.getElementById('userIdDisplay');
-const addSurveyForm = document.getElementById('addSurveyForm');
-const searchQueryInput = document.getElementById('searchQuery');
-const searchResultsDiv = document.getElementById('searchResults');
-const messageModal = document.getElementById('messageModal');
-const modalTitle = document.getElementById('modalTitle');
-const modalMessage = document.getElementById('modalMessage');
-const modalCloseButton = document.getElementById('modalCloseButton');
-const addSurveyToggleButton = document.getElementById('addSurveyToggleButton');
-const addSurveySection = document.getElementById('addSurveySection');
+// --- UI LOGIC ---
 
-/**
- * Displays a custom modal with a given title and message.
- * @param {string} title - The title for the modal.
- * @param {string} message - The message content for the modal.
- */
-function showModal(title, message) {
-    modalTitle.textContent = title;
-    modalMessage.textContent = message;
-    messageModal.classList.add('show');
-}
-
-/**
- * Hides the custom modal.
- */
-function hideModal() {
-    messageModal.classList.remove('show');
-}
-
-// Event listener for closing the modal when the close button is clicked
-modalCloseButton.addEventListener('click', hideModal);
-
-// Event listener for closing the modal when clicking outside its content
-messageModal.addEventListener('click', (e) => {
-    if (e.target === messageModal) {
-        hideModal(); // Close if clicked on the modal overlay itself
-    }
-});
-
-// Toggle "Add Survey" section visibility and change the FAB icon
-addSurveyToggleButton.addEventListener('click', () => {
-    addSurveySection.classList.toggle('show');
-    const icon = addSurveyToggleButton.querySelector('i');
-    if (addSurveySection.classList.contains('show')) {
-        icon.classList.remove('fa-plus');
-        icon.classList.add('fa-minus');
+function toggleSections(show) {
+    if (show === 'find') {
+        findSection.classList.remove('hidden');
+        addSection.classList.add('hidden');
+        showFindBtn.classList.add('bg-sky-600', 'hover:bg-sky-500');
+        showFindBtn.classList.remove('bg-slate-700', 'hover:bg-slate-600');
+        showAddBtn.classList.add('bg-slate-700', 'hover:bg-slate-600');
+        showAddBtn.classList.remove('bg-sky-600', 'hover:bg-sky-500');
     } else {
-        icon.classList.remove('fa-minus');
-        icon.classList.add('fa-plus');
+        findSection.classList.add('hidden');
+        addSection.classList.remove('hidden');
+        showAddBtn.classList.add('bg-sky-600', 'hover:bg-sky-500');
+        showAddBtn.classList.remove('bg-slate-700', 'hover:bg-slate-600');
+        showFindBtn.classList.add('bg-slate-700', 'hover:bg-slate-600');
+        showFindBtn.classList.remove('bg-sky-600', 'hover:bg-sky-500');
     }
-});
-
-let allSurveys = []; // Array to hold all fetched surveys from Firestore
-
-/**
- * Renders search results based on a query string.
- * Filters the 'allSurveys' array and displays matching surveys in the UI.
- * @param {string} queryText - The text to filter surveys by.
- */
-function renderSearchResults(queryText) {
-    searchResultsDiv.innerHTML = ''; // Clear previous results
-    const lowerCaseQuery = queryText.toLowerCase();
-
-    const filteredSurveys = allSurveys.filter(survey => {
-        // Check if the query matches any relevant field (case-insensitive)
-        return survey.surveyUrl.toLowerCase().includes(lowerCaseQuery) ||
-               survey.targetGroup.toLowerCase().includes(lowerCaseQuery) ||
-               survey.qualificationTips.toLowerCase().includes(lowerCaseQuery) ||
-               (survey.credit && survey.credit.toLowerCase().includes(lowerCaseQuery)); // Ensure 'credit' exists before converting to lowercase
-    });
-
-    if (filteredSurveys.length === 0) {
-        // Display a message if no surveys are found
-        searchResultsDiv.innerHTML = `
-            <p class="no-results">
-                <i class="fas fa-hand-point-up"></i>
-                <span>${queryText ? 'No surveys found matching your search.' : 'No surveys available yet. Click the <span class="font-bold text-green-600">+ button</span> to share a new one!'}</span>
-            </p>
-        `;
-        return;
-    }
-
-    // Sort surveys by timestamp in descending order (most recent first)
-    // Ensure 'timestamp' property exists and convert it to milliseconds for comparison
-    filteredSurveys.sort((a, b) => {
-        const timeA = a.timestamp ? a.timestamp.toMillis() : 0;
-        const timeB = b.timestamp ? b.timestamp.toMillis() : 0;
-        return timeB - timeA;
-    });
-
-    // Create and append survey cards for each filtered survey
-    filteredSurveys.forEach(survey => {
-        const surveyCard = document.createElement('div');
-        surveyCard.className = 'card'; // Apply existing card styling
-        surveyCard.innerHTML = `
-            <p><strong>Survey URL:</strong> <a href="${survey.surveyUrl}" target="_blank" rel="noopener noreferrer">${survey.surveyUrl}</a></p>
-            <p><strong>Target Group:</strong> ${survey.targetGroup}</p>
-            <p><strong>Qualification Tips:</strong> ${survey.qualificationTips}</p>
-            <p><strong>Credit:</strong> ${survey.credit || 'Anonymous'}</p>
-        `;
-        searchResultsDiv.appendChild(surveyCard);
-    });
 }
 
-/**
- * Sets up a real-time listener for the 'surveys' collection in Firestore.
- * This function will update 'allSurveys' array and re-render results whenever data changes.
- */
-function setupSurveyListener() {
-    // Ensure Firestore DB is initialized before attempting to set up the listener
-    if (!db) {
-        console.error("Firestore DB is not initialized. Cannot set up survey listener.");
-        return;
-    }
+function showToast(message, isError = false) {
+    toastMessage.textContent = message;
+    toast.classList.remove('bg-emerald-500', 'bg-red-500', 'translate-y-20', 'opacity-0');
+    toast.classList.add(isError ? 'bg-red-500' : 'bg-emerald-500', 'translate-y-0', 'opacity-100');
 
-    // Create a query to the public surveys collection
-    // Path: /artifacts/{appId}/public/data/surveys
-    const q = query(collection(db, `artifacts/${appId}/public/data/surveys`));
+    setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('translate-y-20', 'opacity-0');
+    }, 3000);
+}
 
-    // Set up the real-time listener using onSnapshot
-    onSnapshot(q, (snapshot) => {
-        allSurveys = []; // Clear previous data to avoid duplicates
-        snapshot.forEach((doc) => {
-            // Add each document's data along with its ID to the allSurveys array
-            allSurveys.push({ id: doc.id, ...doc.data() });
+// --- DATA RENDERING ---
+
+function renderSurvey(surveyData) {
+    const card = cardTemplate.content.cloneNode(true);
+    card.querySelector('.survey-url').textContent = surveyData.url;
+    card.querySelector('.survey-target').textContent = surveyData.targetGroup;
+    card.querySelector('.survey-qualify').textContent = surveyData.qualifyInfo || 'N/A';
+    card.querySelector('.survey-credit').textContent = surveyData.credit || 'Anonymous';
+    
+    card.querySelector('.copy-url-btn').addEventListener('click', () => {
+        const textarea = document.createElement('textarea');
+        textarea.value = surveyData.url;
+        document.body.appendChild(textarea);
+        textarea.select();
+        try {
+            document.execCommand('copy');
+            showToast('URL copied to clipboard!');
+        } catch (err) {
+            showToast('Failed to copy URL.', true);
+            console.error('Fallback: Oops, unable to copy', err);
+        }
+        document.body.removeChild(textarea);
+    });
+
+    return card;
+}
+
+function displaySurveys(surveys) {
+    surveyList.innerHTML = '';
+    loadingState.classList.add('hidden');
+    if (surveys.length === 0 && searchInput.value === '') {
+         emptyState.textContent = 'No surveys have been added yet. Be the first!';
+         emptyState.classList.remove('hidden');
+    } else if (surveys.length === 0) {
+         emptyState.textContent = 'No surveys match your search. Try another keyword.';
+         emptyState.classList.remove('hidden');
+    } else {
+        emptyState.classList.add('hidden');
+        surveys.forEach(survey => {
+            const surveyCard = renderSurvey(survey);
+            surveyList.appendChild(surveyCard);
         });
-        // Re-render search results immediately with the newly fetched data
-        renderSearchResults(searchQueryInput.value.trim());
-        console.log("Surveys updated in real-time.");
-    }, (error) => {
-        // Handle any errors that occur during the real-time listening process
-        console.error("Error listening to surveys:", error);
-        showModal("Data Error", "Failed to load surveys in real-time. Error: " + error.message);
-    });
+    }
 }
 
-
-/**
- * Initializes Firebase and sets up all main event listeners once the window has fully loaded.
- */
-window.onload = async function() {
+// --- FIREBASE LOGIC ---
+async function initialize() {
     try {
-        // Initialize Firebase app with the provided configuration
-        app = initializeApp(firebaseConfig);
-        db = getFirestore(app); // Get the Firestore instance
-        auth = getAuth(app);     // Get the Auth instance
+        const app = initializeApp(firebaseConfig);
+        db = getFirestore(app);
+        auth = getAuth(app);
+        // setLogLevel('debug');
 
-        // Set up the authentication state change listener.
-        // This ensures that Firebase operations (like Firestore data fetching)
-        // only happen after the user's authentication state is known.
-        onAuthStateChanged(auth, (user) => {
+        onAuthStateChanged(auth, async (user) => {
             if (user) {
-                // If a user is signed in, set the userId and display it
-                userId = user.uid;
-                userIdDisplay.textContent = userId;
-                console.log("Authenticated with UID:", userId);
-                setupSurveyListener(); // Start listening to surveys only after authentication
+                currentUserId = user.uid;
+                userIdDisplay.textContent = currentUserId;
+                listenForSurveys();
             } else {
-                // If no user is authenticated (e.g., first visit or signed out),
-                // sign in anonymously to allow public data access as per security rules.
-                signInAnonymously(auth)
-                    .then(() => console.log("Signed in anonymously."))
-                    .catch(anonError => {
-                        console.error("Anonymous sign-in failed:", anonError);
-                        showModal("Authentication Error", "Failed to authenticate with Firebase. Please try again later. Error: " + anonError.message);
-                        userIdDisplay.textContent = 'Error'; // Display error if anonymous sign-in fails
-                    });
+                let signedIn = false;
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    try {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                        signedIn = true;
+                    } catch (error) {
+                        console.warn(`Custom token sign-in failed (${error.code}). Falling back to anonymous sign-in.`);
+                    }
+                }
+
+                if (!signedIn) {
+                    try {
+                        await signInAnonymously(auth);
+                    } catch (error) {
+                        console.error("Critical: All sign-in methods failed.", error);
+                        loadingState.textContent = 'Could not authenticate. Please refresh.';
+                    }
+                }
             }
-        });
-
-        // Add Survey Form Submission Listener
-        // This listener is now placed inside window.onload, ensuring that 'db' and 'userId'
-        // are properly initialized before any submission attempts.
-        addSurveyForm.addEventListener('submit', async (e) => {
-            e.preventDefault(); // Prevent default form submission to handle it with JavaScript
-
-            // Basic check to ensure Firebase is initialized and user is authenticated
-            if (!db || !userId || userId === 'Loading...') {
-                showModal("Authentication Pending", "Please wait for authentication to complete before submitting a survey.");
-                return;
-            }
-
-            // Get form input values, trim whitespace
-            const surveyUrl = document.getElementById('surveyUrl').value.trim();
-            const targetGroup = document.getElementById('targetGroup').value.trim();
-            const qualificationTips = document.getElementById('qualificationTips').value.trim();
-            const credit = document.getElementById('credit').value.trim();
-
-            // Validate required fields
-            if (!surveyUrl || !targetGroup || !qualificationTips) {
-                showModal("Input Error", "Please fill in all required fields (Survey URL, Target Group, Qualification Tips).");
-                return;
-            }
-
-            try {
-                // Add a new document to the 'surveys' collection in Firestore
-                // The path is structured for public data within the Canvas environment:
-                // /artifacts/{appId}/public/data/surveys
-                await addDoc(collection(db, `artifacts/${appId}/public/data/surveys`), {
-                    surveyUrl: surveyUrl,
-                    targetGroup: targetGroup,
-                    qualificationTips: qualificationTips,
-                    credit: credit || 'Anonymous', // Default to 'Anonymous' if no credit is provided
-                    timestamp: serverTimestamp(), // Add a server timestamp for ordering
-                    submittedBy: userId // Store the user ID who submitted this survey
-                });
-
-                showModal("Success!", "Survey entry added successfully!");
-                addSurveyForm.reset(); // Clear the form fields
-                addSurveySection.classList.remove('show'); // Hide the form after successful submission
-                const icon = addSurveyToggleButton.querySelector('i');
-                icon.classList.remove('fa-minus');
-                icon.classList.add('fa-plus'); // Reset the toggle button icon to '+'
-            } catch (error) {
-                console.error("Error adding document: ", error);
-                showModal("Submission Error", "Failed to add survey entry. Please try again. Error: " + error.message);
-            }
-        });
-
-        // Event listener for the search input field
-        // This listener is also inside window.onload, ensuring that 'allSurveys' data
-        // is available for filtering and 'renderSearchResults' is ready to be called.
-        searchQueryInput.addEventListener('input', (e) => {
-            renderSearchResults(e.target.value.trim()); // Trigger search on every input change
         });
 
     } catch (error) {
-        // Catch any errors during the initial Firebase setup
-        console.error("Error initializing Firebase:", error);
-        showModal("Initialization Error", "Failed to initialize Firebase. Please check your configuration. Error: " + error.message);
-        userIdDisplay.textContent = 'Error'; // Display 'Error' for user ID if initialization fails
+         console.error("Error initializing Firebase:", error);
+         loadingState.textContent = 'Error initializing application.';
     }
-};
+}
+
+function listenForSurveys() {
+    const surveysColPath = `artifacts/${appId}/public/data/surveys`;
+    const q = query(collection(db, surveysColPath));
+
+    onSnapshot(q, (snapshot) => {
+        surveysCache = [];
+        snapshot.forEach((doc) => {
+            surveysCache.push({ id: doc.id, ...doc.data() });
+        });
+        
+        surveysCache.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
+
+        displaySurveys(surveysCache);
+        searchInput.dispatchEvent(new Event('input')); 
+    }, (error) => {
+        console.error("Error fetching surveys: ", error);
+        loadingState.textContent = "Error loading data. Check console for details.";
+        loadingState.classList.remove('hidden');
+    });
+}
+
+async function handleAddSurvey(event) {
+    event.preventDefault();
+    const url = document.getElementById('survey-url').value.trim();
+    const targetGroup = document.getElementById('target-group').value.trim();
+    const qualifyInfo = document.getElementById('qualify-details').value.trim();
+    const credit = document.getElementById('credit-name').value.trim();
+
+    if (!url || !targetGroup) {
+        showToast("Survey URL and Target Group are required.", true);
+        return;
+    }
+    
+    const newSurvey = {
+        url,
+        targetGroup,
+        qualifyInfo,
+        credit,
+        submitterId: currentUserId,
+        createdAt: new Date()
+    };
+
+    try {
+        const surveysColPath = `artifacts/${appId}/public/data/surveys`;
+        await addDoc(collection(db, surveysColPath), newSurvey);
+        showToast("Survey added successfully!");
+        addSurveyForm.reset();
+        toggleSections('find');
+    } catch (error) {
+        console.error("Error adding document: ", error);
+        showToast("Failed to add survey. Please try again.", true);
+    }
+}
+
+// --- EVENT LISTENERS ---
+showFindBtn.addEventListener('click', () => toggleSections('find'));
+showAddBtn.addEventListener('click', () => toggleSections('add'));
+addSurveyForm.addEventListener('submit', handleAddSurvey);
+
+searchInput.addEventListener('input', (e) => {
+    const searchTerm = e.target.value.toLowerCase();
+    if (!surveysCache) return;
+    
+    const filtered = surveysCache.filter(survey => {
+        const urlMatch = survey.url.toLowerCase().includes(searchTerm);
+        const targetMatch = survey.targetGroup.toLowerCase().includes(searchTerm);
+        const qualifyMatch = survey.qualifyInfo?.toLowerCase().includes(searchTerm);
+        return urlMatch || targetMatch || qualifyMatch;
+    });
+
+    displaySurveys(filtered);
+});
+
+// --- INITIALIZATION ---
+document.addEventListener('DOMContentLoaded', () => {
+    toggleSections('find');
+    initialize();
+});
