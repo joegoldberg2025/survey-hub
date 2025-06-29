@@ -3,90 +3,112 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Survey Hub</title>
-    <!-- Tailwind CSS CDN -->
+    <title>Survey Target Finder</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Poppins Font -->
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- Font Awesome for icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <!-- Custom CSS -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
-<body>
-    <div class="container">
-        <h1 class="text-5xl font-extrabold text-center text-gray-900 mb-10">
-            <i class="fas fa-poll text-blue-600 mr-4"></i>Survey Hub
-        </h1>
+<body class="text-slate-200">
 
-        <!-- User ID Display -->
-        <div class="text-center text-gray-600 text-base mb-6">
-            Your User ID: <span id="userIdDisplay" class="font-mono text-gray-800 bg-blue-50 px-4 py-2 rounded-lg text-sm select-all shadow-inner">Loading...</span>
+    <div class="container mx-auto p-4 md:p-8 max-w-5xl">
+        <header class="text-center mb-10">
+            <h1 class="text-4xl md:text-5xl font-bold gradient-text" style="text-shadow: 0 2px 10px rgba(0,0,0,0.2);">Survey Target Finder</h1>
+            <p class="text-slate-400 mt-2 text-lg">Your collaborative hub for survey intelligence.</p>
+        </header>
+
+        <div class="flex justify-center items-center space-x-4 mb-8">
+            <button id="show-find-btn" class="flex items-center space-x-2 bg-sky-600 hover:bg-sky-500 text-white font-bold py-3 px-6 rounded-full transition-all btn-glow shadow-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" /></svg>
+                <span>Find a Survey</span>
+            </button>
+            <button id="show-add-btn" class="flex items-center space-x-2 bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-6 rounded-full transition-all btn-glow shadow-lg">
+                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg>
+                <span>Add a Survey</span>
+            </button>
         </div>
 
-        <!-- Add Survey Section (Initially hidden) -->
-        <section id="addSurveySection" class="bg-white rounded-xl shadow-lg">
-            <h2 class="section-title">Share a New Survey</h2>
-            <form id="addSurveyForm" class="flex flex-col gap-6">
-                <div>
-                    <label for="surveyUrl" class="block text-gray-700 text-base font-semibold mb-2">Survey URL:</label>
-                    <input type="url" id="surveyUrl" name="surveyUrl" placeholder="e.g., https://cars.qualtrics.com/jfe/form/SV_..." class="w-full" required>
-                </div>
-                <div>
-                    <label for="targetGroup" class="block text-gray-700 text-base font-semibold mb-2">Survey Target Group:</label>
-                    <input type="text" id="targetGroup" name="targetGroup" placeholder="e.g., Toyota car brand owners, main focus on recent buyers" class="w-full" required>
-                </div>
-                <div>
-                    <label for="qualificationTips" class="block text-gray-700 text-base font-semibold mb-2">Qualification Tips:</label>
-                    <textarea id="qualificationTips" name="qualificationTips" rows="5" placeholder="e.g., Answer yes to 'Do you own a Toyota?'" class="w-full" required></textarea>
-                </div>
-                <div>
-                    <label for="credit" class="block text-gray-700 text-base font-semibold mb-2">Credit (Optional):</label>
-                    <input type="text" id="credit" name="credit" placeholder="e.g., @JohnDoe2025" class="w-full">
-                </div>
-                <button type="submit" class="w-full">
-                    <i class="fas fa-paper-plane mr-2"></i>Submit Survey
-                </button>
-            </form>
-        </section>
-
-        <!-- Search Surveys Section -->
-        <section class="p-8 bg-white rounded-xl shadow-lg">
-            <h2 class="section-title">Find Surveys</h2>
-            <div class="mb-8 search-input-wrapper">
-                <i class="fas fa-search search-icon"></i>
-                <input type="text" id="searchQuery" placeholder="Search by keyword, link, or target group..." class="w-full">
-            </div>
-            <div id="searchResults" class="flex flex-col gap-5">
-                <!-- Search results will be displayed here -->
-                <p class="no-results">
-                    <i class="fas fa-hand-point-up"></i>
-                    <span>Start typing to find surveys, or click the <span class="font-bold text-green-600">+ button</span> to share a new one!</span>
-                </p>
+        <section id="add-survey-section" class="hidden">
+            <div class="bg-slate-800/50 backdrop-blur-sm p-6 md:p-8 rounded-2xl shadow-2xl border border-slate-700">
+                <h2 class="text-2xl font-semibold mb-6 text-center gradient-text">Add a New Survey</h2>
+                <form id="add-survey-form" class="space-y-6">
+                    <div>
+                        <label for="survey-url" class="block text-sm font-medium text-slate-300 mb-1">Survey URL</label>
+                        <input type="url" id="survey-url" name="survey-url" required class="mt-1 block w-full bg-slate-700/50 border border-slate-600 rounded-lg shadow-sm py-2 px-4 text-white focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500">
+                    </div>
+                    <div>
+                        <label for="target-group" class="block text-sm font-medium text-slate-300 mb-1">Target Group</label>
+                        <textarea id="target-group" name="target-group" rows="3" required class="mt-1 block w-full bg-slate-700/50 border border-slate-600 rounded-lg shadow-sm py-2 px-4 text-white focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" placeholder="e.g., Toyota car brand owners, minimum focus on sedans..."></textarea>
+                    </div>
+                    <div>
+                        <label for="qualify-details" class="block text-sm font-medium text-slate-300 mb-1">How to Qualify</label>
+                        <textarea id="qualify-details" name="qualify-details" rows="2" class="mt-1 block w-full bg-slate-700/50 border border-slate-600 rounded-lg shadow-sm py-2 px-4 text-white focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" placeholder="e.g., Must be 18+, own the car for at least 6 months..."></textarea>
+                    </div>
+                    <div>
+                        <label for="credit-name" class="block text-sm font-medium text-slate-300 mb-1">Your Name (Optional Credit)</label>
+                        <input type="text" id="credit-name" name="credit-name" class="mt-1 block w-full bg-slate-700/50 border border-slate-600 rounded-lg shadow-sm py-2 px-4 text-white focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" placeholder="John Doe">
+                    </div>
+                    <div class="text-center pt-2">
+                        <button type="submit" class="w-full md:w-auto bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-10 rounded-full transition-all btn-glow shadow-lg">Submit Survey</button>
+                    </div>
+                </form>
             </div>
         </section>
+
+        <section id="find-survey-section">
+            <div class="bg-slate-800/50 backdrop-blur-sm p-6 md:p-8 rounded-2xl shadow-2xl border border-slate-700">
+                <h2 class="text-2xl font-semibold mb-6 text-center gradient-text">Find Surveys</h2>
+                 <div class="mb-6 relative">
+                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" /></svg>
+                     </div>
+                     <input type="text" id="search-input" placeholder="Search by URL, brand, or keyword..." class="w-full bg-slate-700/50 border border-slate-600 rounded-full shadow-sm py-2.5 pl-10 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500">
+                 </div>
+                <div id="loading-state" class="text-center text-slate-400 py-12">
+                     <p>Authenticating & Loading Surveys...</p>
+                </div>
+                <div id="empty-state" class="hidden text-center text-slate-400 py-12">
+                     <p>No surveys found. Try a different search or add one!</p>
+                </div>
+
+                <div id="survey-list" class="space-y-4">
+                    </div>
+            </div>
+        </section>
+        
+        <footer class="text-center mt-10">
+            <p class="text-slate-500 text-sm">Your User ID (for collaboration):</p>
+            <p id="user-id-display" class="text-slate-400 text-xs font-mono break-all mt-1"></p>
+        </footer>
     </div>
 
-    <!-- Floating Action Button for Add Survey -->
-    <div id="addSurveyToggleButton" class="add-survey-toggle-button">
-        <i class="fas fa-plus"></i>
-    </div>
-
-    <!-- Custom Message Modal -->
-    <div id="messageModal" class="modal-overlay">
-        <div class="modal-content">
-            <h3 id="modalTitle" class="modal-title"></h3>
-            <p id="modalMessage" class="modal-message"></p>
-            <button id="modalCloseButton" class="modal-button">Close</button>
+    <template id="survey-card-template">
+        <div class="survey-card bg-slate-800 p-5 rounded-xl shadow-lg border border-slate-700 transition-all hover:shadow-sky-500/10 hover:border-sky-600 hover:-translate-y-1">
+            <div class="flex justify-between items-start mb-3">
+                 <p class="text-sm text-slate-400 break-all survey-url pr-4"></p>
+                 <button class="copy-url-btn flex-shrink-0 p-2 bg-slate-700 hover:bg-sky-600 rounded-lg text-slate-300 hover:text-white transition-all" title="Copy URL">
+                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                 </button>
+            </div>
+            <div class="mb-3">
+                <h3 class="font-semibold text-sky-400 text-base">Target Group:</h3>
+                <p class="text-slate-300 whitespace-pre-wrap survey-target"></p>
+            </div>
+            <div class="mb-4">
+                <h3 class="font-semibold text-sky-400 text-base">How to Qualify:</h3>
+                <p class="text-slate-300 whitespace-pre-wrap survey-qualify"></p>
+            </div>
+            <div class="border-t border-slate-700 pt-3 text-right">
+                <p class="text-xs text-slate-500">Credit: <span class="font-medium text-slate-300 survey-credit"></span></p>
+            </div>
         </div>
+    </template>
+    
+    <div id="toast" class="fixed bottom-5 right-5 bg-emerald-500 text-white py-2 px-5 rounded-lg shadow-lg transform translate-y-20 opacity-0 transition-all duration-300">
+        <p id="toast-message"></p>
     </div>
 
-    <!-- Developed by Footer -->
-    <footer class="developer-credit">
-        Developed by <a href="https://t.me/joegoldberg2025" target="_blank" rel="noopener noreferrer">Joe Goldberg <i class="fab fa-telegram-plane ml-1"></i></a>
-    </footer>
-
-    <!-- Firebase SDKs and Custom JS -->
     <script type="module" src="script.js"></script>
 </body>
 </html>
